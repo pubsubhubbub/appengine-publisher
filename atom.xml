@@ -3,16 +3,16 @@
   <title>Publisher example</title>
   <link rel="self" type="application/atom+xml" href="{{source}}"/>
   <link rel="hub" href="http://pubsubhubbub.appspot.com"/>
-  <updated>{{first_message.get_zulu_time}}</updated>
+  {% if first_message %}
+  <updated>{{first_message.get_zulu_time()}}</updated>
+  {% endif %}
   <id>{{source}}</id>
-  <author><name>nobody</name></author>
-
   {% for message in messages %}
   <entry>
     <title>{{message.title}}</title>
-    <id>{{source}}/{{message.key.id_or_name}}</id>
-    <updated>{{message.get_zulu_time}}</updated>
-    <content type="html">{{message.content|escape}}</content>
+    <id>{{source}}/{{message.key().id_or_name()}}</id>
+    <updated>{{message.get_zulu_time()}}</updated>
+    <content type="html">{{message.content}}</content>
   </entry>
   {% endfor %}
 </feed>
