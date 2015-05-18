@@ -1,6 +1,5 @@
-#!/usr/bin/env python
 #
-# Copyright 2007 Google Inc.
+# Copyright 2007 Google Inc. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -18,13 +17,20 @@
 """Simple publisher example that pings the hub after publishing."""
 
 import logging
+import os
 import urllib
-import wsgiref.handlers
+
+import jinja2
+import webapp2
 
 from google.appengine.api import urlfetch
-from google.appengine.ext import webapp
-from google.appengine.ext.webapp import template
 from google.appengine.ext import db
+
+
+JINJA_ENVIRONMENT = jinja2.Environment(
+    loader=jinja2.FileSystemLoader(os.path.dirname(__file__)),
+    extensions=['jinja2.ext.autoescape'],
+    autoescape=True)
 
 
 class Message(db.Model):
@@ -34,15 +40,16 @@ class Message(db.Model):
   when = db.DateTimeProperty(auto_now_add=True)
 
   def get_zulu_time(self):
-    return self.when.strftime("%Y-%m-%dT%H:%M:%SZ")
+    return self.when.strftime('%Y-%m-%dT%H:%M:%SZ')
 
 
-class MainHandler(webapp.RequestHandler):
+class MainHandler(webapp2.RequestHandler):
   """Allows users to publish new entries."""
 
   def get(self):
     context = dict(messages=Message.gql('ORDER BY when DESC').fetch(20))
-    self.response.out.write(template.render('input.html', context))
+    template = JINJA_ENVIRONMENT.get_template('input.html')
+    self.response.out.write(template.render(context))
 
   def post(self):
     hub_url = self.request.get('hub')
@@ -52,12 +59,13 @@ class MainHandler(webapp.RequestHandler):
 
     headers = {'content-type': 'application/x-www-form-urlencoded'}
     post_params = {
-      'hub.mode': 'publish',
-      'hub.url': self.request.host_url + '/feed',
+        'hub.mode': 'publish',
+        'hub.url': self.request.host_url + '/feed'
     }
     payload = urllib.urlencode(post_params)
     try:
-      response = urlfetch.fetch(hub_url, method='POST', payload=payload)
+      response = urlfetch.fetch(hub_url, method='POST', headers=headers,
+                                payload=payload)
     except urlfetch.Error:
       logging.exception('Failed to deliver publishing message to %s', hub_url)
     else:
@@ -66,27 +74,22 @@ class MainHandler(webapp.RequestHandler):
     self.redirect('/')
 
 
-class FeedHandler(webapp.RequestHandler):
+class FeedHandler(webapp2.RequestHandler):
   """Renders an Atom feed of published entries."""
 
   def get(self):
     messages = Message.gql('ORDER BY when DESC').fetch(20)
     context = {
-      'messages': messages,
-      'source': self.request.host_url + '/feed',
+        'messages': messages,
+        'source': self.request.host_url + '/feed',
     }
     if messages:
       context['first_message'] = messages[0]
     self.response.headers['content-type'] = 'application/xml'
-    self.response.out.write(template.render('atom.xml', context))
+    template = JINJA_ENVIRONMENT.get_template('atom.xml')
+    self.response.out.write(template.render(context))
 
 
-def main():
-  application = webapp.WSGIApplication([('/', MainHandler),
-                                        ('/feed', FeedHandler)],
-                                       debug=True)
-  wsgiref.handlers.CGIHandler().run(application)
-
-
-if __name__ == '__main__':
-  main()
+app = webapp2.WSGIApplication([('/', MainHandler),
+                               ('/feed', FeedHandler)],
+                              debug=True)

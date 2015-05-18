@@ -30,7 +30,7 @@
 <div class="message">
   <div><strong>{{message.title}}</strong></div>
   <div>
-    Published at {{message.get_zulu_time}}, ID: {{message.key.id_or_name}}
+    Published at {{message.get_zulu_time()}}, ID: {{message.key().id_or_name()}}
   </div>
   <div>{{message.content}}</div>
 </div>
